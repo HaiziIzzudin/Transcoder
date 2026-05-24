@@ -80,6 +80,12 @@ internal class VideoRenderer(
         } else if (sourceRatio < targetRatio) { // Input taller. We have a scaleY.
             scaleY = targetRatio / sourceRatio
         }
+        frameDrawer.setResolutions(
+            sourceFormat.getInteger(KEY_WIDTH),
+            sourceFormat.getInteger(KEY_HEIGHT),
+            targetFormat.getInteger(KEY_WIDTH),
+            targetFormat.getInteger(KEY_HEIGHT)
+        )
         frameDrawer.setScale(scaleX, scaleY)
 
         // Create the frame dropper, now that we know the source FPS and the target FPS.

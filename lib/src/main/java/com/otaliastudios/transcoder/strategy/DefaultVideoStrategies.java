@@ -41,4 +41,34 @@ public class DefaultVideoStrategies {
                 .keyFrameInterval(3F)
                 .build();
     }
+
+    /**
+     * A {@link DefaultVideoStrategy} that uses 720x1280 with HEVC (H.265).
+     *
+     * @return a default video strategy using HEVC
+     */
+    @NonNull
+    public static DefaultVideoStrategy for720x1280Hevc() {
+        return DefaultVideoStrategy.exact(720, 1280)
+                .asHevc()
+                .bitRate(1L * 1000 * 1000)
+                .frameRate(30)
+                .keyFrameInterval(3F)
+                .build();
+    }
+
+    /**
+     * A {@link DefaultVideoStrategy} that uses 720x1280 with VP9.
+     *
+     * @return a default video strategy using VP9
+     */
+    @NonNull
+    public static DefaultVideoStrategy for720x1280Vp9() {
+        return DefaultVideoStrategy.exact(720, 1280)
+                .asVp9()
+                .bitRate(1L * 1000 * 1000)
+                .frameRate(30)
+                .keyFrameInterval(3F)
+                .build();
+    }
 }

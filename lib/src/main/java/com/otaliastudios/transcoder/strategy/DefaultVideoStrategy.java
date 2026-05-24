@@ -189,6 +189,24 @@ public class DefaultVideoStrategy implements TrackStrategy {
         }
 
         @NonNull
+        public Builder asAvc() {
+            this.targetMimeType = MediaFormatConstants.MIMETYPE_VIDEO_AVC;
+            return this;
+        }
+
+        @NonNull
+        public Builder asHevc() {
+            this.targetMimeType = MediaFormatConstants.MIMETYPE_VIDEO_HEVC;
+            return this;
+        }
+
+        @NonNull
+        public Builder asVp9() {
+            this.targetMimeType = MediaFormatConstants.MIMETYPE_VIDEO_VP9;
+            return this;
+        }
+
+        @NonNull
         @SuppressWarnings("WeakerAccess")
         public Options options() {
             Options options = new Options();
@@ -283,7 +301,7 @@ public class DefaultVideoStrategy implements TrackStrategy {
         }
         outputFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
         int outBitRate = (int) (options.targetBitRate == BITRATE_UNKNOWN
-                ? BitRates.estimateVideoBitRate(outWidth, outHeight, outFrameRate)
+                ? BitRates.estimateVideoBitRate(outWidth, outHeight, outFrameRate, options.targetMimeType)
                 : options.targetBitRate);
         outputFormat.setInteger(MediaFormat.KEY_BIT_RATE, outBitRate);
         return TrackStatus.COMPRESSING;

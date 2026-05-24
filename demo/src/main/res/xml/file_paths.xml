@@ -3,4 +3,7 @@
     <external-path
         name="output_videos"
         path="Android/data/com.otaliastudios.transcoder.demo/files/outputs" />
+    <external-path
+        name="output_downloads"
+        path="Download/Transcoder" />
 </paths>

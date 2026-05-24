@@ -42,6 +42,9 @@ import java.util.concurrent.Future;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
+import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.appcompat.app.ActionBarDrawerToggle;
+import android.view.MenuItem;
 
 import kotlin.collections.ArraysKt;
 
@@ -60,6 +63,7 @@ public class TranscoderActivity extends AppCompatActivity implements
     private RadioGroup mAudioSampleRateGroup;
     private RadioGroup mVideoFramesGroup;
     private RadioGroup mVideoResolutionGroup;
+    private RadioGroup mVideoCodecGroup;
     private RadioGroup mVideoAspectGroup;
     private RadioGroup mVideoRotationGroup;
     private RadioGroup mSpeedGroup;
@@ -72,6 +76,8 @@ public class TranscoderActivity extends AppCompatActivity implements
     private TextView mAudioReplaceView;
 
     private boolean mIsTranscoding;
+    private DrawerLayout mDrawerLayout;
+    private ActionBarDrawerToggle mDrawerToggle;
     private boolean mIsAudioOnly;
     private Future<Void> mTranscodeFuture;
     private Uri mAudioReplacementUri;
@@ -105,6 +111,25 @@ public class TranscoderActivity extends AppCompatActivity implements
         Logger.setLogLevel(Logger.LEVEL_VERBOSE);
         setContentView(R.layout.activity_transcoder);
 
+        mDrawerLayout = findViewById(R.id.drawer_layout);
+        mDrawerToggle = new ActionBarDrawerToggle(this, mDrawerLayout, R.string.drawer_open, R.string.drawer_close);
+        mDrawerLayout.addDrawerListener(mDrawerToggle);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setHomeButtonEnabled(true);
+        }
+        mDrawerToggle.syncState();
+
+        com.google.android.material.navigation.NavigationView navigationView = findViewById(R.id.nav_view);
+        navigationView.setNavigationItemSelectedListener(item -> {
+            int id = item.getItemId();
+            if (id == R.id.nav_changelog) {
+                startActivity(new Intent(TranscoderActivity.this, ChangelogActivity.class));
+            }
+            mDrawerLayout.closeDrawers();
+            return true;
+        });
+
         mButtonView = findViewById(R.id.button);
         mButtonView.setOnClickListener(v -> {
             if (!mIsTranscoding) {
@@ -128,6 +153,7 @@ public class TranscoderActivity extends AppCompatActivity implements
         mAudioChannelsGroup = findViewById(R.id.channels);
         mVideoFramesGroup = findViewById(R.id.frames);
         mVideoResolutionGroup = findViewById(R.id.resolution);
+        mVideoCodecGroup = findViewById(R.id.codec);
         mVideoAspectGroup = findViewById(R.id.aspect);
         mVideoRotationGroup = findViewById(R.id.rotation);
         mSpeedGroup = findViewById(R.id.speed);
@@ -137,6 +163,7 @@ public class TranscoderActivity extends AppCompatActivity implements
         mAudioChannelsGroup.setOnCheckedChangeListener(mRadioGroupListener);
         mVideoFramesGroup.setOnCheckedChangeListener(mRadioGroupListener);
         mVideoResolutionGroup.setOnCheckedChangeListener(mRadioGroupListener);
+        mVideoCodecGroup.setOnCheckedChangeListener(mRadioGroupListener);
         mVideoAspectGroup.setOnCheckedChangeListener(mRadioGroupListener);
         mAudioSampleRateGroup.setOnCheckedChangeListener(mRadioGroupListener);
         mTrimStartView.addTextChangedListener(mTextListener);
@@ -200,12 +227,21 @@ public class TranscoderActivity extends AppCompatActivity implements
         else if (aspectRatioId == R.id.aspect_43) aspectRatio = 4F / 3F;
         else if (aspectRatioId == R.id.aspect_square) aspectRatio = 1F;
 
-        mTranscodeVideoStrategy = new DefaultVideoStrategy.Builder()
+        DefaultVideoStrategy.Builder videoBuilder = new DefaultVideoStrategy.Builder()
                 .addResizer(aspectRatio > 0 ? new AspectRatioResizer(aspectRatio) : new PassThroughResizer())
                 .addResizer(new FractionResizer(fraction))
-                .frameRate(frames)
-                // .keyFrameInterval(4F)
-                .build();
+                .frameRate(frames);
+
+        int codecId = mVideoCodecGroup.getCheckedRadioButtonId();
+        if (codecId == R.id.codec_hevc) {
+            videoBuilder.asHevc();
+        } else if (codecId == R.id.codec_vp9) {
+            videoBuilder.asVp9();
+        } else {
+            videoBuilder.asAvc();
+        }
+
+        mTranscodeVideoStrategy = videoBuilder.build();
 
         try {
             mTrimStartUs = Long.valueOf(mTrimStartView.getText().toString()) * 1000000;
@@ -256,16 +292,24 @@ public class TranscoderActivity extends AppCompatActivity implements
     }
 
     private void transcode(@NonNull Uri... uris) {
-        // Create a temporary file for output.
+        // Create an output file.
         try {
-            File outputDir = new File(getExternalFilesDir(null), "outputs");
-            //noinspection ResultOfMethodCallIgnored
-            outputDir.mkdir();
-            mTranscodeOutputFile = File.createTempFile("transcode_test", ".mp4", outputDir);
+            File outputDir;
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                File downloadsDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS);
+                outputDir = new File(downloadsDir, "Transcoder");
+            } else {
+                outputDir = new File(getExternalFilesDir(null), "outputs");
+            }
+            if (!outputDir.exists()) {
+                outputDir.mkdirs();
+            }
+            String timeStamp = new java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(new java.util.Date());
+            mTranscodeOutputFile = new File(outputDir, "transcode_" + timeStamp + ".mp4");
             LOG.i("Transcoding into " + mTranscodeOutputFile);
-        } catch (IOException e) {
-            LOG.e("Failed to create temporary file.", e);
-            Toast.makeText(this, "Failed to create temporary file.", Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            LOG.e("Failed to create output file.", e);
+            Toast.makeText(this, "Failed to create output file: " + e.getMessage(), Toast.LENGTH_LONG).show();
             return;
         }
 
@@ -349,6 +393,14 @@ public class TranscoderActivity extends AppCompatActivity implements
     @Override
     public void onTranscodeFailed(@NonNull Throwable exception) {
         onTranscodeFinished(false, "Transcoder error occurred. " + exception.getMessage());
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        if (mDrawerToggle.onOptionsItemSelected(item)) {
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     private void onTranscodeFinished(boolean isSuccess, String toastMessage) {

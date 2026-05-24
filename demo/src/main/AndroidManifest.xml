@@ -32,6 +32,16 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".ChangelogActivity"
+            android:label="Changelog"
+            android:parentActivityName=".TranscoderActivity"
+            android:exported="false">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".TranscoderActivity" />
+        </activity>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="com.otaliastudios.transcoder.demo.fileprovider"

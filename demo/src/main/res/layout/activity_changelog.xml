@@ -47,7 +47,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Iteration 2: Super-Sampled Video Downscaling"
+                        android:text="Iteration 2: Mipmapped Video Downscaling"
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="#1a1c24" />
@@ -75,7 +75,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="• Implemented a high-quality single-pass 5x5 Super-Sampling Anti-Aliasing (SSAA) downscaling filter in a custom OpenGL ES fragment shader.\n• Configured the shader to sample the external OES texture 25 times in a grid matching the exact target pixel footprint in texture coordinate space, mapping offsets using the texture transform matrix to maintain orientation.\n• This approach completely eliminates jagged/shimmering aliasing artifacts while avoiding EGL context switching and driver-specific NPOT mipmapping limitations."
+                        android:text="• Fixed a visual anti-aliasing (jagged edges and pixelation) defect when downscaling videos by introducing a dual-pass rendering pipeline using an intermediate Framebuffer Object (FBO).\n• Enabled standard 2D texture mipmapping on the intermediate FBO via glGenerateMipmap and applied trilinear filtering (GL_LINEAR_MIPMAP_LINEAR) to produce extremely smooth downscaled outputs.\n• Maintained thread-safe rendering using the active EGL rendering context and preserved a fallback option to single-pass rendering."
                         android:textColor="#3a4049"
                         android:textSize="14sp"
                         android:layout_marginTop="12dp"

@@ -35,13 +35,11 @@ class FrameDrawer {
     private SurfaceTexture mSurfaceTexture;
     private Surface mSurface;
 
-    private GlTexture mProgramTexture;
+    private GlTexture mInputTexture;
     private GlTextureProgram mProgram;
+    private DownscalingOesProgram mDownscalingProgram;
     private GlRect mDrawable;
 
-    private GlTexture m2DTexture;
-    private GlTextureProgram mProgram2D;
-    private int mFboId = 0;
     private int mSourceWidth = 0;
     private int mSourceHeight = 0;
     private int mTargetWidth = 0;
@@ -61,16 +59,16 @@ class FrameDrawer {
      * new one). Creates a Surface that can be passed to MediaCodec.configure().
      */
     public FrameDrawer() {
-        GlTexture texture = new GlTexture();
+        mInputTexture = new GlTexture();
         mProgram = new GlTextureProgram();
-        mProgram.setTexture(texture);
+        mProgram.setTexture(mInputTexture);
         mDrawable = new GlRect();
 
         // Even if we don't access the SurfaceTexture after the constructor returns, we
         // still need to keep a reference to it.  The Surface doesn't retain a reference
         // at the Java level, so if we don't either then the object can get GCed, which
         // causes the native finalizer to run.
-        mSurfaceTexture = new SurfaceTexture(texture.getId());
+        mSurfaceTexture = new SurfaceTexture(mInputTexture.getId());
         mSurfaceTexture.setOnFrameAvailableListener(new SurfaceTexture.OnFrameAvailableListener() {
             @Override
             public void onFrameAvailable(SurfaceTexture surfaceTexture) {
@@ -125,53 +123,19 @@ class FrameDrawer {
         mTargetWidth = targetWidth;
         mTargetHeight = targetHeight;
 
-        // Only initialize FBO if downscaling is actually occurring
+        // If downscaling is occurring, instantiate the downscaling shader program
         if (mSourceWidth > mTargetWidth || mSourceHeight > mTargetHeight) {
             try {
-                m2DTexture = new GlTexture(mSourceWidth, mSourceHeight);
-                
-                // Set mipmapping parameters
-                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, m2DTexture.getId());
-                GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR_MIPMAP_LINEAR);
-                GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
-                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
-
-                // Create FBO
-                int[] framebuffers = new int[1];
-                GLES20.glGenFramebuffers(1, framebuffers, 0);
-                mFboId = framebuffers[0];
-                GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, mFboId);
-                GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, m2DTexture.getId(), 0);
-
-                int status = GLES20.glCheckFramebufferStatus(GLES20.GL_FRAMEBUFFER);
-                if (status != GLES20.GL_FRAMEBUFFER_COMPLETE) {
-                    throw new RuntimeException("Framebuffer not complete: " + status);
-                }
-                GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
-
-                mProgram2D = new GlTextureProgram();
-                mProgram2D.setTexture(m2DTexture);
-                LOG.i("FBO initialized successfully for downscaling from " + mSourceWidth + "x" + mSourceHeight + " to " + mTargetWidth + "x" + mTargetHeight);
+                mDownscalingProgram = new DownscalingOesProgram();
+                mDownscalingProgram.setTexture(mInputTexture);
+                LOG.i("Downscaling SSAA program initialized for downscaling from " + mSourceWidth + "x" + mSourceHeight + " to " + mTargetWidth + "x" + mTargetHeight);
             } catch (Exception e) {
-                LOG.e("Failed to initialize FBO for mipmapped downscaling. Falling back to single-pass.", e);
-                releaseFbo();
+                LOG.e("Failed to initialize downscaling SSAA program. Falling back to default bilinear.", e);
+                if (mDownscalingProgram != null) {
+                    mDownscalingProgram.release();
+                    mDownscalingProgram = null;
+                }
             }
-        }
-    }
-
-    private void releaseFbo() {
-        if (mProgram2D != null) {
-            mProgram2D.release();
-            mProgram2D = null;
-        }
-        if (m2DTexture != null) {
-            m2DTexture.release();
-            m2DTexture = null;
-        }
-        if (mFboId != 0) {
-            int[] framebuffers = new int[]{mFboId};
-            GLES20.glDeleteFramebuffers(1, framebuffers, 0);
-            mFboId = 0;
         }
     }
 
@@ -180,8 +144,11 @@ class FrameDrawer {
      */
     public void release() {
         mProgram.release();
+        if (mDownscalingProgram != null) {
+            mDownscalingProgram.release();
+            mDownscalingProgram = null;
+        }
         mSurface.release();
-        releaseFbo();
         // this causes a bunch of warnings that appear harmless but might confuse someone:
         // W BufferQueue: [unnamed-3997-2] cancelBuffer: BufferQueue has been abandoned!
         // mSurfaceTexture.release();
@@ -231,66 +198,82 @@ class FrameDrawer {
      * Draws the data from SurfaceTexture onto the current EGL surface.
      */
     private void drawNewFrame() {
-        if (mFboId != 0 && mProgram2D != null && m2DTexture != null) {
-            // PASS 1: Render OES texture onto the FBO (1:1 copy at source resolution)
-            GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, mFboId);
-            GLES20.glViewport(0, 0, mSourceWidth, mSourceHeight);
+        GlTextureProgram activeProgram = (mDownscalingProgram != null) ? mDownscalingProgram : mProgram;
 
-            mSurfaceTexture.getTransformMatrix(mProgram.getTextureTransform());
-            mProgram.draw(mDrawable);
+        activeProgram.getTextureTransform(); // Load it
+        mSurfaceTexture.getTransformMatrix(activeProgram.getTextureTransform());
 
-            // Generate mipmaps for the 2D texture
-            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, m2DTexture.getId());
-            GLES20.glGenerateMipmap(GLES20.GL_TEXTURE_2D);
-            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
+        // Invert the scale.
+        float glScaleX = 1F / mScaleX;
+        float glScaleY = 1F / mScaleY;
+        // Compensate before scaling.
+        float glTranslX = (1F - glScaleX) / 2F;
+        float glTranslY = (1F - glScaleY) / 2F;
+        Matrix.translateM(activeProgram.getTextureTransform(), 0, glTranslX, glTranslY, 0);
+        // Scale.
+        Matrix.scaleM(activeProgram.getTextureTransform(), 0, glScaleX, glScaleY, 1);
+        // Apply rotation and flip.
+        Matrix.translateM(activeProgram.getTextureTransform(), 0, 0.5F, 0.5F, 0);
+        Matrix.rotateM(activeProgram.getTextureTransform(), 0, mRotation, 0, 0, 1);
+        if (mFlipY) {
+            Matrix.scaleM(activeProgram.getTextureTransform(), 0, 1F, -1F, 1F);
+        }
+        Matrix.translateM(activeProgram.getTextureTransform(), 0, -0.5F, -0.5F, 0);
 
-            // Unbind FBO
-            GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
+        if (activeProgram == mDownscalingProgram) {
+            mDownscalingProgram.setPixelSize(1.0f / mTargetWidth, 1.0f / mTargetHeight);
+        }
 
-            // PASS 2: Render the 2D texture with mipmaps to target surface with scale, rotate, flip
-            GLES20.glViewport(0, 0, mTargetWidth, mTargetHeight);
+        // Draw.
+        activeProgram.draw(mDrawable);
+    }
 
-            Matrix.setIdentityM(mProgram2D.getTextureTransform(), 0);
-            // Invert the scale.
-            float glScaleX = 1F / mScaleX;
-            float glScaleY = 1F / mScaleY;
-            // Compensate before scaling.
-            float glTranslX = (1F - glScaleX) / 2F;
-            float glTranslY = (1F - glScaleY) / 2F;
-            Matrix.translateM(mProgram2D.getTextureTransform(), 0, glTranslX, glTranslY, 0);
-            // Scale.
-            Matrix.scaleM(mProgram2D.getTextureTransform(), 0, glScaleX, glScaleY, 1);
-            // Apply rotation and flip.
-            Matrix.translateM(mProgram2D.getTextureTransform(), 0, 0.5F, 0.5F, 0);
-            Matrix.rotateM(mProgram2D.getTextureTransform(), 0, mRotation, 0, 0, 1);
-            if (mFlipY) {
-                Matrix.scaleM(mProgram2D.getTextureTransform(), 0, 1F, -1F, 1F);
+    private static class DownscalingOesProgram extends GlTextureProgram {
+        private static final String VERTEX_SHADER =
+                "uniform mat4 uMVPMatrix;\n" +
+                "uniform mat4 uTexMatrix;\n" +
+                "uniform vec2 uPixelSize;\n" +
+                "attribute vec4 aPosition;\n" +
+                "attribute vec4 aTextureCoord;\n" +
+                "varying vec2 vTextureCoord;\n" +
+                "varying vec2 vPixelOffsetX;\n" +
+                "varying vec2 vPixelOffsetY;\n" +
+                "void main() {\n" +
+                "    gl_Position = uMVPMatrix * aPosition;\n" +
+                "    vTextureCoord = (uTexMatrix * aTextureCoord).xy;\n" +
+                "    vPixelOffsetX = (uTexMatrix * vec4(uPixelSize.x, 0.0, 0.0, 0.0)).xy;\n" +
+                "    vPixelOffsetY = (uTexMatrix * vec4(0.0, uPixelSize.y, 0.0, 0.0)).xy;\n" +
+                "}\n";
+
+        private static final String FRAGMENT_SHADER =
+                "#extension GL_OES_EGL_image_external : require\n" +
+                "precision mediump float;\n" +
+                "varying vec2 vTextureCoord;\n" +
+                "varying vec2 vPixelOffsetX;\n" +
+                "varying vec2 vPixelOffsetY;\n" +
+                "uniform samplerExternalOES sTexture;\n" +
+                "void main() {\n" +
+                "    vec4 color = vec4(0.0);\n" +
+                "    for (int y = -2; y <= 2; y++) {\n" +
+                "        for (int x = -2; x <= 2; x++) {\n" +
+                "            vec2 offset = float(x) * 0.2 * vPixelOffsetX + float(y) * 0.2 * vPixelOffsetY;\n" +
+                "            color += texture2D(sTexture, vTextureCoord + offset);\n" +
+                "        }\n" +
+                "    }\n" +
+                "    gl_FragColor = color / 25.0;\n" +
+                "}\n";
+
+        private int uPixelSizeLocation = -1;
+
+        public DownscalingOesProgram() {
+            super(VERTEX_SHADER, FRAGMENT_SHADER);
+            uPixelSizeLocation = GLES20.glGetUniformLocation(getHandle(), "uPixelSize");
+        }
+
+        public void setPixelSize(float w, float h) {
+            if (uPixelSizeLocation != -1) {
+                GLES20.glUniform2f(uPixelSizeLocation, w, h);
             }
-            Matrix.translateM(mProgram2D.getTextureTransform(), 0, -0.5F, -0.5F, 0);
-
-            mProgram2D.draw(mDrawable);
-        } else {
-            // Fallback: single-pass rendering
-            mSurfaceTexture.getTransformMatrix(mProgram.getTextureTransform());
-            // Invert the scale.
-            float glScaleX = 1F / mScaleX;
-            float glScaleY = 1F / mScaleY;
-            // Compensate before scaling.
-            float glTranslX = (1F - glScaleX) / 2F;
-            float glTranslY = (1F - glScaleY) / 2F;
-            Matrix.translateM(mProgram.getTextureTransform(), 0, glTranslX, glTranslY, 0);
-            // Scale.
-            Matrix.scaleM(mProgram.getTextureTransform(), 0, glScaleX, glScaleY, 1);
-            // Apply rotation and flip.
-            Matrix.translateM(mProgram.getTextureTransform(), 0, 0.5F, 0.5F, 0);
-            Matrix.rotateM(mProgram.getTextureTransform(), 0, mRotation, 0, 0, 1);
-            if (mFlipY) {
-                Matrix.scaleM(mProgram.getTextureTransform(), 0, 1F, -1F, 1F);
-            }
-            Matrix.translateM(mProgram.getTextureTransform(), 0, -0.5F, -0.5F, 0);
-
-            // Draw.
-            mProgram.draw(mDrawable);
         }
     }
 }

@@ -28,173 +28,120 @@
                 android:textColor="#1a1c24"
                 android:layout_marginBottom="24dp" />
 
-            <!-- Timeline Container -->
-            <RelativeLayout
+            <!-- Iteration 2 Section (Latest) -->
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="20dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp"
+                app:strokeColor="#2196F3"
+                app:strokeWidth="1dp">
 
-                <!-- Vertical Line -->
-                <View
-                    android:id="@+id/timeline_line"
-                    android:layout_width="4dp"
-                    android:layout_height="wrap_content"
-                    android:background="#d1d9e6"
-                    android:layout_alignParentStart="true"
-                    android:layout_marginStart="14dp"
-                    android:layout_alignTop="@+id/item_latest"
-                    android:layout_alignBottom="@+id/item_previous" />
-
-                <!-- Timeline Item: Latest Iteration (Downscaling Fix) -->
-                <RelativeLayout
-                    android:id="@+id/item_latest"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="32dp">
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-                    <!-- Dot indicator -->
-                    <View
-                        android:id="@+id/dot_latest"
-                        android:layout_width="16dp"
-                        android:layout_height="16dp"
-                        android:background="@drawable/circle_active"
-                        android:layout_alignParentStart="true"
-                        android:layout_marginStart="8dp"
-                        android:layout_marginTop="20dp" />
-
-                    <!-- Content Card -->
-                    <com.google.android.material.card.MaterialCardView
-                        android:layout_width="match_parent"
+                    <TextView
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_toEndOf="@id/dot_latest"
-                        android:layout_marginStart="24dp"
-                        app:cardCornerRadius="12dp"
-                        app:cardElevation="2dp"
-                        app:strokeColor="#2196F3"
-                        app:strokeWidth="1dp">
+                        android:text="Iteration 2: Super-Sampled Video Downscaling"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="#1a1c24" />
 
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="vertical"
-                            android:padding="16dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Active Iteration"
+                        android:textSize="12sp"
+                        android:textColor="#2196F3"
+                        android:textStyle="bold"
+                        android:background="#e3f2fd"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="2dp"
+                        android:layout_marginTop="4dp" />
 
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Iteration 2: Mipmapped Video Downscaling"
-                                android:textSize="18sp"
-                                android:textStyle="bold"
-                                android:textColor="#1a1c24" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="May 24, 2026"
+                        android:textSize="13sp"
+                        android:textColor="#7a8089"
+                        android:layout_marginTop="8dp" />
 
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Active Iteration"
-                                android:textSize="12sp"
-                                android:textColor="#2196F3"
-                                android:textStyle="bold"
-                                android:background="#e3f2fd"
-                                android:paddingHorizontal="8dp"
-                                android:paddingVertical="2dp"
-                                android:layout_marginTop="4dp" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="• Implemented a high-quality single-pass 5x5 Super-Sampling Anti-Aliasing (SSAA) downscaling filter in a custom OpenGL ES fragment shader.\n• Configured the shader to sample the external OES texture 25 times in a grid matching the exact target pixel footprint in texture coordinate space, mapping offsets using the texture transform matrix to maintain orientation.\n• This approach completely eliminates jagged/shimmering aliasing artifacts while avoiding EGL context switching and driver-specific NPOT mipmapping limitations."
+                        android:textColor="#3a4049"
+                        android:textSize="14sp"
+                        android:layout_marginTop="12dp"
+                        android:lineSpacingMultiplier="1.2"
+                        tools:ignore="HardcodedText" />
 
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="May 24, 2026"
-                                android:textSize="13sp"
-                                android:textColor="#7a8089"
-                                android:layout_marginTop="8dp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="• Fixed a visual anti-aliasing (jagged edges and pixelation) defect when downscaling videos by introducing a dual-pass rendering pipeline using an intermediate Framebuffer Object (FBO).\n• Enabled standard 2D texture mipmapping on the intermediate FBO via glGenerateMipmap and applied trilinear filtering (GL_LINEAR_MIPMAP_LINEAR) to produce extremely smooth downscaled outputs.\n• Maintained thread-safe rendering using the active EGL rendering context and preserved a fallback option to single-pass rendering."
-                                android:textColor="#3a4049"
-                                android:textSize="14sp"
-                                android:layout_marginTop="12dp"
-                                android:lineSpacingMultiplier="1.2"
-                                tools:ignore="HardcodedText" />
+            <!-- Iteration 1 Section (Previous) -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="20dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="1dp"
+                app:strokeColor="#d1d9e6"
+                app:strokeWidth="1dp">
 
-                        </LinearLayout>
-                    </com.google.android.material.card.MaterialCardView>
-                </RelativeLayout>
-
-                <!-- Timeline Item: Previous Iteration (FileProvider Fix) -->
-                <RelativeLayout
-                    android:id="@+id/item_previous"
+                <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content">
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-                    <!-- Dot indicator -->
-                    <View
-                        android:id="@+id/dot_previous"
-                        android:layout_width="16dp"
-                        android:layout_height="16dp"
-                        android:background="@drawable/circle_completed"
-                        android:layout_alignParentStart="true"
-                        android:layout_marginStart="8dp"
-                        android:layout_marginTop="20dp" />
-
-                    <!-- Content Card -->
-                    <com.google.android.material.card.MaterialCardView
-                        android:layout_width="match_parent"
+                    <TextView
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_toEndOf="@id/dot_previous"
-                        android:layout_marginStart="24dp"
-                        app:cardCornerRadius="12dp"
-                        app:cardElevation="1dp"
-                        app:strokeColor="#d1d9e6"
-                        app:strokeWidth="1dp">
+                        android:text="Iteration 1: FileProvider Crash Fix"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="#1a1c24" />
 
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="vertical"
-                            android:padding="16dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Completed"
+                        android:textSize="12sp"
+                        android:textColor="#4CAF50"
+                        android:textStyle="bold"
+                        android:background="#e8f5e9"
+                        android:paddingHorizontal="8dp"
+                        android:paddingVertical="2dp"
+                        android:layout_marginTop="4dp" />
 
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Iteration 1: FileProvider Crash Fix"
-                                android:textSize="18sp"
-                                android:textStyle="bold"
-                                android:textColor="#1a1c24" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="May 24, 2026"
+                        android:textSize="13sp"
+                        android:textColor="#7a8089"
+                        android:layout_marginTop="8dp" />
 
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Completed"
-                                android:textSize="12sp"
-                                android:textColor="#4CAF50"
-                                android:textStyle="bold"
-                                android:background="#e8f5e9"
-                                android:paddingHorizontal="8dp"
-                                android:paddingVertical="2dp"
-                                android:layout_marginTop="4dp" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="• Fixed an application crash (IllegalArgumentException) occurring on Android Q and higher upon transcoding completion.\n• Added support for the public Downloads directory (Download/Transcoder) to the FileProvider allowed XML paths config in file_paths.xml so that transcoded videos can be opened in external players safely."
+                        android:textColor="#3a4049"
+                        android:textSize="14sp"
+                        android:layout_marginTop="12dp"
+                        android:lineSpacingMultiplier="1.2"
+                        tools:ignore="HardcodedText" />
 
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="May 24, 2026"
-                                android:textSize="13sp"
-                                android:textColor="#7a8089"
-                                android:layout_marginTop="8dp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="• Fixed an application crash (IllegalArgumentException) occurring on Android Q and higher upon transcoding completion.\n• Added support for the public Downloads directory (Download/Transcoder) to the FileProvider allowed XML paths config in file_paths.xml so that transcoded videos can be opened in external players safely."
-                                android:textColor="#3a4049"
-                                android:textSize="14sp"
-                                android:layout_marginTop="12dp"
-                                android:lineSpacingMultiplier="1.2"
-                                tools:ignore="HardcodedText" />
-
-                        </LinearLayout>
-                    </com.google.android.material.card.MaterialCardView>
-                </RelativeLayout>
-            </RelativeLayout>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
